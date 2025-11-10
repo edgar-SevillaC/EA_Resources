@@ -20,13 +20,17 @@ option explicit
 '    3. Arxml File will be generated in same folder where model is stored.
 ' 
 '
-' History
+' History: (version) [dd.mm.yyyy] : Author : Description
+' (v1.0) [14.04.2025] : @Edgar Sevilla : First version of script (functional)
+' (v1.1) [10.11.2023] : @Edgar Sevilla : Configuration feature was added
 
 
-Const SCRIPT_VERSION  = "1.0"
+Const SCRIPT_VERSION  = "1.1"
+Const SCRIPT_AUTHOR  = "Edgar Sevilla"
 
 'Debug Enable:
-Const DBG_PRINT_SCREEN = True
+Const DBG_PRINT_ENABLED = True
+Const DBG_LEVEL = 1	' Level of details [1 - 3]
 Const DBG_PRINT_ARXML_OUTPUT = False
 
 'AUTOSAR CONSTANTS
@@ -38,24 +42,29 @@ Const AUTOSAR_SCHEMA_XSD = "http://autosar.org/schema/r4.0 AUTOSAR_00046.xsd"
 'CUSTOM TAG CONSTANTS
 Const CUSTOM_ARXML_NAMESPACE="ea"
 Const CUSTOM_ARXML_SCHEMA="https://sparxsystems.com/schema/ea"
+'Note: EB tresos do not support TagValues from different namespace
 
 
-Const SWC_STEREOTYPE = "SW Component"
-Const SWIF_STEREOTYPE = "SW Interface"
+Const PACKAGE_SUFIX = "_Pkg" ' this sufix is used for ARXML package Name
 
-Const PPORT_SENDER = "Sender"
-Const PPORT_SERVER = "Server"
-Const PPORT_MDSW = "ModeSwitch_in"
 
-Const RPORT_CLIENT = "Client"
-Const RPORT_RECEIVER = "Receiver"
-Const RPORT_MDSW = "ModeSwitch_out"
+Const SWC_STEREOTYPE = "SW Component" ' Used to identify SW Component element from Model element stereotype
+Const SWIF_STEREOTYPE = "SW Interface" ' Used to identify SW Interface element from Model element stereotype
+
+Const PPORT_SENDER = "Sender" ' Used to identify Sender P-Port element from Model element stereotype
+Const PPORT_SERVER = "Server" ' Used to identify Sender P-Port element from Model element stereotype
+Const PPORT_MDSW = "ModeSwitch_in" ' Used to identify ModeSWitch P-Port element from Model element stereotype
+
+Const RPORT_CLIENT = "Client" ' Used to identify Client R-Port element from Model element stereotype
+Const RPORT_RECEIVER = "Receiver" ' Used to identify Receiver R-Port element from Model element stereotype
+Const RPORT_MDSW = "ModeSwitch_out" ' Used to identify ModeSWitch R-Port element from Model element stereotype
+
+Const COMPONENT_TYPE_TAG = "Layer" ' Tag Used to identify SW Component Type
+Const COMPONENT_TYPE_APP = "APP (AUTOSAR)" ' Used to identify Application SW Component
+Const COMPONENT_TYPE_CDD = "CDD (AUTOSAR)" ' Used to identify Complex Device Driver SW Component
 
 'Software Component under 
 dim g_SelectedComponent as EA.Element
-
-
-
 
 
 'File
@@ -64,11 +73,11 @@ dim g_ArxmlFile
 
 sub main
 	
-	
 	' Show the script output window
     Repository.EnsureOutputVisible "Script"
 	Repository.ClearOutput( "Script" )
     Session.Output( "GenerateSwComponentArxml" )
+	Session.Output( "   Author: " & SCRIPT_AUTHOR )
     Session.Output( "   version: " & SCRIPT_VERSION )
 	Session.Output("start: " & Now )
     Session.Output("")
@@ -76,6 +85,8 @@ sub main
 	dim treeSelectedType
 	dim selectedComponent as EA.Element
 	
+	g_ErrorCnt = 0
+	g_WarningCnt = 0
 	treeSelectedType = Repository.GetTreeSelectedItemType()
 	
 	if treeSelectedType = otElement then
@@ -84,23 +95,11 @@ sub main
 			
 		if g_SelectedComponent.Stereotype = SWC_STEREOTYPE then
 	
-			Debug_Print( "    SW Component: " & g_SelectedComponent.Name )
+			Debug_Print "    SW Component: " & g_SelectedComponent.Name , 2
 			Arxml_CreateFile
-			Arxml_PopulateAutosarVersionInfo_start
-			Arxml_CreateSWComponentPackage_start
-			Arxml_CreateSWComponent_start
 			
-			Arxml_CreateSWComponentPorts_loop
-			Arxml_CreateSWComponentInternalBehaviors_loop
+			Arxml_GenerationStart
 			
-			Arxml_CreateSWComponent_end
-			
-			Arxml_CreateSWComponentModeSwitchInterface_loop
-			Arxml_CreateSWComponentModeDeclarationGroup_loop
-			
-			Arxml_CreateSWComponentPackage_end
-			Arxml_PopulateAutosarVersionInfo_end
-	
 			Arxml_CloseFile
 		else
 			MsgBox "Select a valid SW Component in Project Browser ", _
@@ -124,33 +123,35 @@ Private Function Arxml_CreateFile()
     dim FilePath
     dim CurrentDirectory
 	
-	Debug_Print("Arxml_CreateFile")
+	Debug_Print "Arxml_CreateFile", 1
 	
 	CurrentDirectory = Left(Repository.ConnectionString, InStrRev(Repository.ConnectionString, "\"))
 	FilePath = CurrentDirectory & g_SelectedComponent.Name & ".arxml"
-	Debug_Print("")
-	Debug_Print("    Target File: " & g_SelectedComponent.Name & ".arxml")
-	Debug_Print("    Target Path: " & CurrentDirectory)
+	Debug_Print "", 2
+	Debug_Print "    Target File: " & g_SelectedComponent.Name & ".arxml", 2
+	Debug_Print "    Target Path: " & CurrentDirectory, 2
 
 	Set fso = CreateObject("Scripting.FileSystemObject")
 	Set g_ArxmlFile = fso.CreateTextFile(FilePath, True)
 	
-	Arxml_WriteLine("<?xml version=" & Chr(34) & "1.0" & Chr(34) & " encoding="  & Chr(34) & "utf-8"  & Chr(34) & "?>")
-
 end function
 
 Private Function Arxml_CloseFile()
 
-	Debug_Print("Arxml_CloseFile")
+	Debug_Print "Arxml_CloseFile", 1
 	g_ArxmlFile.Close
 
 end function
 
 
-Private Function Arxml_PopulateAutosarVersionInfo_start()
+Private Function Arxml_GenerationStart()
 
-	Debug_Print("Arxml_PopulateAutosarVersionInfo_start")
+	Debug_Print "Arxml_GenerationStart", 1
 	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+              Write ARXML headers                         +
+	Arxml_WriteLine("<?xml version=" & Chr(34) & "1.0" & Chr(34) & _
+	                " encoding="  & Chr(34) & "utf-8"  & Chr(34) & "?>")
 	Arxml_WriteLine("<AUTOSAR xmlns=" & Chr(34) & AUTOSAR_SCHEMA & Chr(34))
 	
 	if CUSTOM_ARXML_NAMESPACE <> "" then
@@ -160,128 +161,273 @@ Private Function Arxml_PopulateAutosarVersionInfo_start()
 	
     Arxml_WriteLine("         xmlns:xsi=" & Chr(34) & AUTOSAR_SCHEMA_INST & Chr(34))
     Arxml_WriteLine("         xsi:schemaLocation=" & Chr(34) & AUTOSAR_SCHEMA_XSD & Chr(34) & ">")
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+	'Next Envelop
+	Arxml_CreateMainARPackage
 
-
-end function
-
-Private Function Arxml_PopulateAutosarVersionInfo_end()
-	Debug_Print("Arxml_PopulateAutosarVersionInfo_end")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                    Terminate ARXML Tag                   +
 	Arxml_WriteLine("</AUTOSAR>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
 end function
 
-Private Function Arxml_CreateSWComponentPackage_start()
-	Debug_Print("Arxml_CreateSWComponentPackage_start")
+
+Private Function Arxml_CreateMainARPackage()
+	Debug_Print "Arxml_CreateSWComponentPackage", 1
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                Create AR-Packages                        +
 	Arxml_WriteLine("  <AR-PACKAGES>")
 	Arxml_WriteLine("    <AR-PACKAGE>")
-	Arxml_WriteLine("      <SHORT-NAME>" & g_SelectedComponent.Name & "_Package</SHORT-NAME>")
+	Arxml_WriteLine("      <SHORT-NAME>" & g_SelectedComponent.Name & PACKAGE_SUFIX & "</SHORT-NAME>")
 	Arxml_WriteLine("      <AR-PACKAGES>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	'Next Envelop
+	Arxml_CreateComponentTypePackage
+	Arxml_CreateCompuMethodsPackage
+	Arxml_CreatePortInterfacesPackage
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                    Terminate ARXML Tag                   +
+	Arxml_WriteLine("      </AR-PACKAGES>")
+	Arxml_WriteLine("    </AR-PACKAGE>")
+	Arxml_WriteLine("  </AR-PACKAGES>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+end function
+
+Private Function Arxml_CreateComponentTypePackage()
+	Debug_Print "Arxml_CreateComponentTypePackage", 1
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                Create SWC-Package                        +
 	Arxml_WriteLine("        <AR-PACKAGE>")
 	Arxml_WriteLine("          <SHORT-NAME>ComponentTypes</SHORT-NAME>")
 	Arxml_WriteLine("          <ELEMENTS>")
 
-end function
+	'Next Envelop
+	Arxml_CreateSWComponent
+	Arxml_CreateSWComponentModeSwitchInterface_loop
+	Arxml_CreateSWComponentModeDeclarationGroup_loop
 
-Private Function Arxml_CreateSWComponentPackage_end()
-	Debug_Print("Arxml_CreateSWComponentPackage_end")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                    Terminate ARXML Tag                   +
 	Arxml_WriteLine("          </ELEMENTS>")
 	Arxml_WriteLine("        </AR-PACKAGE>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	
-	Arxml_CreateSWComponentCompuMethods_loop
-	Arxml_CreateSWComponentPortInterfaces_loop
+end function
+
+Private Function Arxml_CreateCompuMethodsPackage()
+	Debug_Print "Arxml_CreateCompuMethodsPackage", 1
 	
-	Arxml_WriteLine("      </AR-PACKAGES>")
-	Arxml_WriteLine("    </AR-PACKAGE>")
-	Arxml_WriteLine("  </AR-PACKAGES>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                Create CompuMethods Package               +
+	Arxml_WriteLine("        <AR-PACKAGE>")
+	Arxml_WriteLine("          <SHORT-NAME>CompuMethods</SHORT-NAME>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+	'Next envelop
+	'ToDo: Add Compu Methods
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                    Terminate ARXML Tag                   +
+	Arxml_WriteLine("        </AR-PACKAGE>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 end function
 
-Private Function Arxml_CreateSWComponentPortInterfaces_loop()
-	Debug_Print("Arxml_CreateSWComponentPortInterfaces_loop")
+Private Function Arxml_CreatePortInterfacesPackage()
+	Debug_Print "Arxml_CreatePortInterfacesPackage", 1
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                Create PortInterfaces Package             +
 	Arxml_WriteLine("        <AR-PACKAGE>")
 	Arxml_WriteLine("          <SHORT-NAME>PortInterfaces</SHORT-NAME>")
 	Arxml_WriteLine("          <ELEMENTS>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	
-	dim port as EA.Element
-	dim swInterface as EA.Element
-	dim swInterfaceId
+	'Next Envelops
+	PortInterfacesExtract
 	
-	'Loop over Interfaces linked to P-Ports
-	for each port in g_SelectedComponent.Elements
-		Debug_Print("    " & port.Name & ":" & port.Stereotype)
-		
-		'Search for Linked SW Interfaces
-		swInterfaceId = GetLinkedSwInterfaceElementId(port)
-		
-		if swInterfaceId <> 0 then
-			Set swInterface = Repository.GetElementByID(swInterfaceId)
-		end if
-		
-		If Not swInterface Is Nothing Then
-		
-			if port.Stereotype = PPORT_SERVER             then 
-				Arxml_WriteLine("            <CLIENT-SERVER-INTERFACE>")
-				Arxml_WriteLine("              <SHORT-NAME>" & swInterface.Name & "</SHORT-NAME>")
-				Arxml_WriteLine("              <OPERATIONS>")
-				Arxml_WriteLine("                <CLIENT-SERVER-OPERATION>")
-				
-				Arxml_WriteLine("                </CLIENT-SERVER-OPERATION>")
-				Arxml_WriteLine("              </OPERATIONS>")
-				Arxml_WriteLine("            </CLIENT-SERVER-INTERFACE>")
-			
-			elseif port.Stereotype = PPORT_SENDER         then
-				Arxml_WriteLine("            <SENDER-RECEIVER-INTERFACE>")
-				Arxml_WriteLine("              <SHORT-NAME>" & swInterface.Name & "</SHORT-NAME>")
-				Arxml_WriteLine("              <DATA-ELEMENTS>")
-				Arxml_WriteLine("                <VARIABLE-DATA-PROTOTYPE>")
-				
-				Arxml_WriteLine("                </VARIABLE-DATA-PROTOTYPE>")
-				Arxml_WriteLine("              </DATA-ELEMENTS>")
-				Arxml_WriteLine("            </SENDER-RECEIVER-INTERFACE>")
-				
-				
-			'elseif port.Stereotype = "ModeSwitch_out" then
-			'	arxmlPort = "<P-PORT-PROTOTYPE>"
-			else
-				' ToDo: Add Alert that Unknown Port Interface detected
-				Arxml_WriteLine("            <UNKNOWN-INTERFACE>")
-				Arxml_WriteLine("              <SHORT-NAME>" & swInterface.Name & "</SHORT-NAME>")
-				Arxml_WriteLine("            <UNKNOWN-INTERFACE>")
-			end if
-		end if
-		
-	Next
-	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                    Terminate ARXML Tag                   +
 	Arxml_WriteLine("          </ELEMENTS>")
+	Arxml_WriteLine("        </AR-PACKAGE>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+end function
+
+
+
+Private Function Arxml_PortInterfacesPPortServer(swIf)
+
+	Debug_Print "Arxml_PortInterfacesPPortServer", 1
 	
-	Arxml_WriteLine("        </AR-PACKAGE>")
+	dim swInterface as EA.Element
+	set swInterface = swIf
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                Create Client-Server Interface            +
+	Arxml_WriteLine("            <CLIENT-SERVER-INTERFACE>")
+	Arxml_WriteLine("              <SHORT-NAME>" & swInterface.Name & "</SHORT-NAME>")
+	
+	if CUSTOM_ARXML_NAMESPACE <> "" then
+		Arxml_WriteLine("              <" & CUSTOM_ARXML_NAMESPACE & ":GUID>" & swInterface.ElementGUID & "</" & CUSTOM_ARXML_NAMESPACE & ":GUID>")
+	end if
+	Arxml_WriteLine("              <OPERATIONS>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+	'Next Envelop
+	PortInterfacesOperationsExtract(swIf)
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                    Terminate ARXML Tag                   +
+	Arxml_WriteLine("              </OPERATIONS>")
+	Arxml_WriteLine("            </CLIENT-SERVER-INTERFACE>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 end function
 
-Private Function Arxml_CreateSWComponentCompuMethods_loop()
-	Debug_Print("Arxml_CreateSWComponentPackage_end")
-	Arxml_WriteLine("        <AR-PACKAGE>")
-	Arxml_WriteLine("          <SHORT-NAME>CompuMethods</SHORT-NAME>")
-	Arxml_WriteLine("        </AR-PACKAGE>")
+Private Function Arxml_PortInterfacesPPortSender(swIf)
+
+	Debug_Print "Arxml_PortInterfacesPPortSender", 1
+	
+	dim swInterface as EA.Element
+	set swInterface = swIf
+
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                Create Sender-Receiver Interface          +
+	Arxml_WriteLine("            <SENDER-RECEIVER-INTERFACE>")
+	Arxml_WriteLine("              <SHORT-NAME>" & swInterface.Name & "</SHORT-NAME>")
+	
+	if CUSTOM_ARXML_NAMESPACE <> "" then
+		Arxml_WriteLine("              <" & CUSTOM_ARXML_NAMESPACE & ":GUID>" & swInterface.ElementGUID & "</" & CUSTOM_ARXML_NAMESPACE & ":GUID>")
+	end if
+	Arxml_WriteLine("              <DATA-ELEMENTS>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+	'Next Envelop
+	PortInterfacesDataElementExtract(swIf)
+
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                    Terminate ARXML Tag                   +
+	Arxml_WriteLine("              </DATA-ELEMENTS>")
+	Arxml_WriteLine("            </SENDER-RECEIVER-INTERFACE>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 end function
 
-Private Function Arxml_CreateSWComponent_start()
-	Debug_Print("Arxml_CreateSWComponent_start")
-	Arxml_WriteLine("            <APPLICATION-SW-COMPONENT-TYPE>")
+
+Private Function Arxml_PortInterfaceOperations(Oper)
+
+	Debug_Print "Arxml_PortInterfaceOperations", 1
+	
+	dim operation as EA.Method
+	set operation = Oper
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                Create Client-Server Operation            +
+	Arxml_WriteLine("                <CLIENT-SERVER-OPERATION>")
+	Arxml_WriteLine("                  <SHORT-NAME>" & operation.Name & "</SHORT-NAME>")
+	Arxml_WriteLine("                  <ARGUMENTS>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	'Next Envelop
+	Arxml_CreateSWComponentInterfaceOperationsParameters_loop(operation)
+	
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                    Terminate ARXML Tag                   +
+	Arxml_WriteLine("                  </ARGUMENTS>")
+	Arxml_WriteLine("                </CLIENT-SERVER-OPERATION>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+end function
+
+Private Function Arxml_PortInterfaceDataElement(Att)
+
+	Debug_Print "Arxml_PortInterfaceOperations", 1
+	
+	dim attribute as EA.Attribute
+	set attribute = Att
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                Create Client-Server Operation            +
+	Arxml_WriteLine("                <VARIABLE-DATA-PROTOTYPE>")
+	Arxml_WriteLine("                  <SHORT-NAME>" & attribute.Name & "</SHORT-NAME>")
+	Arxml_WriteLine("                  <TYPE-TREF DEST=" & Chr(34) & "IMPLEMENTATION-DATA-TYPE" & Chr(34) & ">" & "ADD REFERENCE (TBD)" & "</TYPE-TREF>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                    Terminate ARXML Tag                   +
+	Arxml_WriteLine("                </VARIABLE-DATA-PROTOTYPE>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+end function
+
+
+Private Function Arxml_CreateSWComponentInterfaceOperationsParameters_loop(oper)
+	Debug_Print "Arxml_CreateSWComponentInterfaceOperationsParameters_loop", 1
+	
+	dim operation as EA.Method
+	dim parameter as EA.Parameter
+	set  operation = oper
+	
+	for each parameter in operation.Parameters
+		Debug_Print "ParamNmae: " & parameter.Name, 2
+
+		Arxml_WriteLine("                  <ARGUMENT-DATA-PROTOTYPE>")
+		Arxml_WriteLine("                    <SHORT-NAME>" & parameter.Name & "</SHORT-NAME>")
+		Arxml_WriteLine("                    <TYPE-TREF DEST=" & Chr(34) & "IMPLEMENTATION-DATA-TYPE" & Chr(34) & ">" & _
+		                                                    parameter.Type & "</TYPE-TREF>")
+		Arxml_WriteLine("                    <DIRECTION>" & UCase(parameter.Kind) & "</DIRECTION>")
+		
+		
+		Arxml_WriteLine("                  </ARGUMENT-DATA-PROTOTYPE>")
+
+	Next
+
+end function
+
+
+
+Private Function Arxml_CreateSWComponent()
+	Debug_Print "Arxml_CreateSWComponent", 1
+	
+	dim componentType
+	componentType = IdentifySwComponentType()
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                Create CompuMethods Package               +
+	Arxml_WriteLine("            " & componentType)
 	Arxml_WriteLine("              <SHORT-NAME>" & g_SelectedComponent.Name & "</SHORT-NAME>")
 
 	if CUSTOM_ARXML_NAMESPACE <> "" then
 		Arxml_WriteLine("              <" & CUSTOM_ARXML_NAMESPACE & ":GUID>" & g_SelectedComponent.ElementGUID & "</" & CUSTOM_ARXML_NAMESPACE & ":GUID>")
 	end if
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+	'Next Evelop
+	Arxml_CreateSWComponentPorts_loop
+	Arxml_CreateSWComponentInternalBehaviors_loop
+	
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'+                    Terminate ARXML Tag                   +
+	Arxml_WriteLine("            </APPLICATION-SW-COMPONENT-TYPE>")
+	'++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
 end function
 
-Private Function Arxml_CreateSWComponent_end()
-	Debug_Print("Arxml_CreateSWComponent_end")
-	Arxml_WriteLine("            </APPLICATION-SW-COMPONENT-TYPE>")
-end function
 
 Private Function Arxml_CreateSWComponentPorts_loop()
-	Debug_Print("Arxml_CreateSWComponentPorts_loop")
+	Debug_Print "Arxml_CreateSWComponentPorts_loop",1
 	Arxml_WriteLine("              <PORTS>")
 	
 	dim port as EA.Element
@@ -300,7 +446,7 @@ Private Function Arxml_CreateSWComponentPorts_loop()
 			Set swInterface = Repository.GetElementByID(swInterfaceId)
 		end if
 		
-		Debug_Print("    " & port.Name & ":" & port.Stereotype)
+		Debug_Print "    " & port.Name & ":" & port.Stereotype, 3
 		if port.Stereotype = PPORT_SERVER             then 
 			Arxml_WriteLine("                <P-PORT-PROTOTYPE>")
 			Arxml_WriteLine("                  <SHORT-NAME>" & port.Name & "</SHORT-NAME>")
@@ -312,12 +458,12 @@ Private Function Arxml_CreateSWComponentPorts_loop()
 			
 		
 			If Not swInterface Is Nothing Then
-				Arxml_WriteLine("                    <SERVER-COM-SPEC>")
-				'Todo Search for Operations
-				Arxml_WriteLine("                    </SERVER-COM-SPEC>")
+
+				Arxml_CreateSWComponentInterfaceOperations_loop2(swInterface)
+				
 				Arxml_WriteLine("                  </PROVIDED-COM-SPECS>")
 				Arxml_WriteLine("                  <PROVIDED-INTERFACE-TREF DEST=" & Chr(34) & "CLIENT-SERVER-INTERFACE" & Chr(34) & ">/" & _
-																					g_SelectedComponent.Name & "_Package/PortInterfaces/" & swInterface.Name & _
+																					g_SelectedComponent.Name & PACKAGE_SUFIX &"/PortInterfaces/" & swInterface.Name & _
 																					"</PROVIDED-INTERFACE-TREF>")
 				Arxml_WriteLine("                </P-PORT-PROTOTYPE>")
 			
@@ -382,7 +528,7 @@ Private Function Arxml_CreateSWComponentPorts_loop()
 			arxmlPortType = "<MODE-SWITCH-RECEIVER-COM-SPEC>"
 		else
 			arxmlPort = "<UNKNOWN-PORT-PROTOTYPE>"
-			arxmlPortType = "<UNKNOWN-COM-SPEC>"
+			arxmlPortType = "</UNKNOWN-COM-SPEC>"
 		end if
 
 		
@@ -394,8 +540,30 @@ Private Function Arxml_CreateSWComponentPorts_loop()
 
 end function
 
+Private Function Arxml_CreateSWComponentInterfaceOperations_loop2(swIf)
+	Debug_Print "Arxml_CreateSWComponentInterfaceOperations_loop2", 1
+	
+	dim swInterface as EA.Element
+	dim operation as EA.Method
+	dim parameter as EA.Parameter
+	set  swInterface = swIf
+	
+	for each operation in swInterface.Methods
+		Debug_Print "OpNmae: " & operation.Name, 3
+		Arxml_WriteLine("                    <SERVER-COM-SPEC>")
+
+		Arxml_WriteLine("                    <OPERATION-REF DEST=" & Chr(34) & "CLIENT-SERVER-OPERATION" & Chr(34) & ">" & _
+                                              "/" & g_SelectedComponent.Name & PACKAGE_SUFIX & "/PortInterfaces/" & swInterface.Name & "/" & _
+											  operation.Name & "</OPERATION-REF>")
+		Arxml_WriteLine("                      <QUEUE-LENGTH>1</QUEUE-LENGTH>")
+		Arxml_WriteLine("                    </SERVER-COM-SPEC>")
+	Next
+
+end function
+
 Private Function Arxml_CreateSWComponentInternalBehaviors_loop()
-	Debug_Print("Arxml_CreateSWComponentInternalBehaviors_loop")
+	Debug_Print "Arxml_CreateSWComponentInternalBehaviors_loop", 1
+	
 	Arxml_WriteLine("              <INTERNAL-BEHAVIORS>")
 	Arxml_WriteLine("                <SWC-INTERNAL-BEHAVIOR>")
 	Arxml_WriteLine("                  <SHORT-NAME>" & g_SelectedComponent.Name & "_InternalBehavior</SHORT-NAME>")
@@ -417,21 +585,120 @@ Private Function Arxml_CreateSWComponentInternalBehaviors_loop()
 end function
 
 Private Function Arxml_CreateSWComponentModeSwitchInterface_loop()
-	Debug_Print("Arxml_CreateSWComponentModeSwitchInterface_loop")
+	Debug_Print "Arxml_CreateSWComponentModeSwitchInterface_loop", 1
 	Arxml_WriteLine("            <MODE-SWITCH-INTERFACE>")
 	Arxml_WriteLine("            </MODE-SWITCH-INTERFACE>")
 
 end function
 
 Private Function Arxml_CreateSWComponentModeDeclarationGroup_loop()
-	Debug_Print("Arxml_CreateSWComponentModeDeclarationGroup_loop")
+	Debug_Print "Arxml_CreateSWComponentModeDeclarationGroup_loop", 1
 	Arxml_WriteLine("            <MODE-DECLARATION-GROUP>")
 	Arxml_WriteLine("            </MODE-DECLARATION-GROUP>")
 
 end function
 
+
+Private Function PortInterfacesDataElementExtract(swIf)
+	Debug_Print "PortInterfacesDataElementExtract", 1
+	
+	dim swInterface as EA.Element
+	dim attribute as EA.Attribute
+	set  swInterface = swIf
+	
+	for each attribute in swInterface.Attributes
+		Debug_Print "AttName: " & attribute.Name, 2
+		
+		Arxml_PortInterfaceDataElement(attribute)
+	Next
+
+end function
+
+Private Function PortInterfacesOperationsExtract(swIf)
+	Debug_Print "PortInterfacesOperationsExtract", 1
+	
+	dim swInterface as EA.Element
+	dim operation as EA.Method
+	set  swInterface = swIf
+	
+	for each operation in swInterface.Methods
+		Debug_Print "OpNmae: " & operation.Name, 3
+		
+		Arxml_PortInterfaceOperations(operation)
+	Next
+
+end function
+
+
+Private Function PortInterfacesExtract()
+	Debug_Print "PortInterfacesExtract", 1
+
+	dim port as EA.Element
+	dim swInterface as EA.Element
+	dim swInterfaceId
+	
+	'Loop over Interfaces linked to P-Ports
+	for each port in g_SelectedComponent.Elements
+		Debug_Print "    " & port.Name & ":" & port.Stereotype, 3
+		
+		'Search for Linked SW Interfaces
+		swInterfaceId = GetLinkedSwInterfaceElementId(port)
+		
+		if swInterfaceId <> 0 then
+			Set swInterface = Repository.GetElementByID(swInterfaceId)
+		end if
+		
+		If Not swInterface Is Nothing Then
+		
+			if port.Stereotype = PPORT_SERVER             then 
+				Arxml_PortInterfacesPPortServer(swInterface)
+			
+			elseif port.Stereotype = PPORT_SENDER         then
+				Arxml_PortInterfacesPPortSender(swInterface)
+				
+			else
+				' Other ports are not parsed
+			end if
+		end if
+		
+	Next
+
+end function
+
+Private Function IdentifySwComponentType()
+
+	Debug_Print "IdentifySwComponentType", 1
+	
+	dim tag As EA.TaggedValue
+	dim componentType
+	
+	Set tag = g_SelectedComponent.TaggedValues.GetByName(COMPONENT_TYPE_TAG)
+    If Not tag Is Nothing Then
+        componentType = tag.Value
+	else
+        componentType = "Invalid"
+    End If
+	Debug_Print "Tag value: " & componentType, 3
+	
+	if componentType = COMPONENT_TYPE_APP then
+		componentType = "<APPLICATION-SW-COMPONENT-TYPE>"
+	elseif componentType = COMPONENT_TYPE_CDD then
+		componentType = "<COMPLEX-DEVICE-DRIVER-SW-COMPONENT-TYPE>"
+	else
+		Error_Print("No valid SW Component type : '" & componentType & "' : Arxml_CreateSWComponent_start")
+		componentType = "<UNKNOWN-SW-COMPONENT-TYPE>"
+	end if
+	
+	Debug_Print "Component type Return: " & componentType, 3
+	
+	IdentifySwComponentType = componentType
+
+end function
+
 Private Function GetLinkedSwInterfaceElementId(thePort)
 
+	Debug_Print "GetLinkedSwInterfaceElementId", 1
+	
 	dim port as EA.Element
 	dim swInterface as EA.Element
 	dim eaConnector as EA.Connector
@@ -456,7 +723,7 @@ Private Function GetLinkedSwInterfaceElementId(thePort)
 	fileRow = Split(xmlOutput, "<Row><ea_guid>")
 	if UBound(fileRow) > 0 then
 		guid = Left(fileRow(1), InStr(fileRow(1), "}"))
-		Debug_Print(guid)
+		Debug_Print guid, 2
 
 		Set eaConnector = Repository.GetConnectorByGuid(guid)
 		Set swInterface = Repository.GetElementByID(eaConnector.SupplierID)
@@ -465,26 +732,44 @@ Private Function GetLinkedSwInterfaceElementId(thePort)
 		end if
 	end if
 	
+	Debug_Print GetLinkedSwInterfaceElementId, 2
 	
 End function
 
 
 Private Function Arxml_WriteLine(line)
 
-	if DBG_PRINT_SCREEN = True and DBG_PRINT_ARXML_OUTPUT = True then
+	if DBG_PRINT_ENABLED = True and DBG_PRINT_ARXML_OUTPUT = True then
 		Session.Output(line)
 	end if
 	g_ArxmlFile.WriteLine line
 
 end function
 
-Private Function Debug_Print(line)
+Private Function Debug_Print(line, level)
 
-	if DBG_PRINT_SCREEN = True then
+	if DBG_PRINT_ENABLED = True and level <= DBG_LEVEL then
 		Session.Output(line)
 	end if
 
 end function
 
+dim g_ErrorCnt
+
+Private Function Error_Print(line)
+
+	g_ErrorCnt = g_ErrorCnt + 1
+	Session.Output("#ERROR# (" & g_ErrorCnt &"): " & line)
+	
+end function
+
+dim g_WarningCnt
+
+Private Function Warning_Print(line)
+
+	g_WarningCnt = g_WarningCnt + 1
+	Session.Output("#WARNING# (" & g_WarningCnt &"): " & line)
+	
+end function
 
 main
