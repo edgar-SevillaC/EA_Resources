@@ -22,11 +22,11 @@ option explicit
 '
 ' History: (version) [dd.mm.yyyy] : Author : Description
 ' (v1.0) [14.04.2025] : @Edgar Sevilla : First version of script (functional)
-' (v1.1) [10.11.2023] : @Edgar Sevilla : Configuration feature was added
-' (v1.2) [10.11.2023] : @Edgar Sevilla : Configuration feature was added
+' (v1.1) [10.11.2025] : @Edgar Sevilla : Configuration feature was added. Refactoring. Debuging improved
+' (v1.2) [11.11.2025] : @Edgar Sevilla : Refactoring, readability improved
+' (v1.3) [15.11.2025] : @Edgar Sevilla : deprecated -> Replaced by "ARXML_Generation"
 
-
-Const SCRIPT_VERSION  = "1.1"
+Const SCRIPT_VERSION  = "1.3"
 Const SCRIPT_AUTHOR  = "Edgar Sevilla"
 
 'Debug Enable:
