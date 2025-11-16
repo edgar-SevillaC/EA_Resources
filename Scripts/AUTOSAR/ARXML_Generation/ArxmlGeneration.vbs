@@ -9,6 +9,14 @@
 ' Purpose: ARXML generation based on EA model
 ' Date: 12.11.2025
 '
+' 
+'
+' History: (version) [dd.mm.yyyy] : Author : Description
+' (v1.0) [12.04.2025] : @Edgar Sevilla : initial version
+' (v1.1) [17.04.2025] : @Edgar Sevilla : minor Fixes, Procession of R-Ports, Reference to interfaces
+'                                        in other packages
+'
+'
 
 'File
 Dim fso
@@ -39,7 +47,7 @@ Private Function Arxml_GenerationStart()
     else
         customNameSpace = ""
     end if
-
+	
     '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     '+              Write ARXML headers                         +
     Arxml_WriteLine("<?xml version=" & Chr(34) & "1.0" & Chr(34) & _
@@ -355,11 +363,14 @@ Private Function Arxml_CreateSWComponent()
     
     'Next Evelop
     PortPrototypeExtract
+	
+	Arxml_WriteLine XmlCloseTag("PORTS", IDENT_07)
+	
+	'Next Evelop
     InternalBehaviorExtract
     
     '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     '+                    Terminate ARXML Tag                   +
-    Arxml_WriteLine XmlCloseTag("PORTS", IDENT_07)
     Arxml_WriteLine XmlCloseTag(componentType, IDENT_06)
     '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
@@ -424,14 +435,15 @@ Private Function Arxml_CreateSWComponentModeDeclarationGroup_loop()
 end function
 
 
-Private Function Arxml_PortPrototypePPort(swPort, swIf)
-    Debug_Print "Arxml_PortPrototypePPortServer", 1
+Private Function Arxml_PortPrototypePPort(swPort)
+    Debug_Print "Arxml_PortPrototypePPort", 1
     
     dim port as EA.Element
     dim swInterface as EA.Element
+	dim parentPackage as EA.Package
     set port = swPort
-    set swInterface = swIf
     
+	set swInterface = Nothing
     '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     '+                Create P-Port Prototype                   +
     Arxml_WriteLine XmlOpenTag("P-PORT-PROTOTYPE", IDENT_08)
@@ -450,16 +462,23 @@ Private Function Arxml_PortPrototypePPort(swPort, swIf)
     
     dim interfaceType
     dim interfacePath
-    
+	dim swInterfaceId
+	
+	swInterfaceId = GetLinkedSwInterfaceElementId(port, PPORT_INTERFACE_LINK)
+	if swInterfaceId <> 0 then
+		Set swInterface = Repository.GetElementByID(swInterfaceId)
+	end if
+	
     If Not swInterface Is Nothing Then
         
+		set parentPackage = Repository.GetPackageByID(swInterface.PackageID)
         if port.Stereotype = PPORT_SERVER then
             
             'Search for Opperations
             PortPrototypeIfOperationsExtract swPort, swInterface
             
             interfaceType = "CLIENT-SERVER-INTERFACE"
-            interfacePath = "/" & g_SelectedComponent.Name & PACKAGE_SUFFIX &"/PortInterfaces/" & swInterface.Name
+            interfacePath = "/" & parentPackage.Name & PACKAGE_SUFFIX &"/PortInterfaces/" & swInterface.Name
 
         elseif port.Stereotype = PPORT_SENDER then
         
@@ -467,7 +486,7 @@ Private Function Arxml_PortPrototypePPort(swPort, swIf)
             PortPrototypeIfAttributesExtract swPort, swInterface
             
             interfaceType = "SENDER-RECEIVER-INTERFACE"
-            interfacePath = "/" & g_SelectedComponent.Name & PACKAGE_SUFFIX &"/PortInterfaces/" & swInterface.Name
+            interfacePath = "/" & parentPackage.Name & PACKAGE_SUFFIX &"/PortInterfaces/" & swInterface.Name
         
         elseif port.Stereotype = PPORT_MDSW then
         
@@ -477,25 +496,112 @@ Private Function Arxml_PortPrototypePPort(swPort, swIf)
             Arxml_WriteLine XmlCloseTag("MODE-SWITCH-SENDER-COM-SPEC", IDENT_10)
             
             interfaceType = "MODE-SWITCH-INTERFACE"
-            interfacePath = "/" & g_SelectedComponent.Name & PACKAGE_SUFFIX &"/PortInterfaces/" & swInterface.Name
+            interfacePath = "/" & parentPackage.Name & PACKAGE_SUFFIX &"/PortInterfaces/" & swInterface.Name
         
         else
-            interfaceType = ""
-            interfacePath = ""
+            interfaceType = "TBD"
+            interfacePath = "TBD"
         end if
-        
+    else
+        Arxml_WriteLine XmlTagComment("TBD-INTERFACE", "Interface not defined", IDENT_10)
     end if
 
 
     '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     '+                    Terminate ARXML Tag                   +
     Arxml_WriteLine XmlCloseTag("PROVIDED-COM-SPECS", IDENT_09)
-    Arxml_WriteLine XmlTagAndData("PROVIDED-INTERFACE-TREF", interfacePath, "DEST=" & Chr(34) & interfaceType & Chr(34), IDENT_09)
-    Arxml_WriteLine XmlCloseTag("P-PORT-PROTOTYPE", IDENT_08)
+    If Not swInterface Is Nothing Then
+		Arxml_WriteLine XmlTagAndData("PROVIDED-INTERFACE-TREF", interfacePath, "DEST=" & Chr(34) & interfaceType & Chr(34), IDENT_09)
+    else
+		Arxml_WriteLine XmlTagComment("PROVIDED-INTERFACE-TREF", "Interface not defined", IDENT_09)
+	end if
+	Arxml_WriteLine XmlCloseTag("P-PORT-PROTOTYPE", IDENT_08)
     '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
 end function
 
+Private Function Arxml_PortPrototypeRPort(swPort)
+    Debug_Print "Arxml_PortPrototypeRPort", 1
+    
+    dim port as EA.Element
+    dim swInterface as EA.Element
+	dim parentPackage as EA.Package
+    set port = swPort
+    set swInterface = Nothing
+    '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    '+                Create P-Port Prototype                   +
+    Arxml_WriteLine XmlOpenTag("R-PORT-PROTOTYPE", IDENT_08)
+    Arxml_WriteLine XmlTag("SHORT-NAME", port.Name, IDENT_09)
+    
+    if CUSTOM_ARXML_NAMESPACE <> "" then
+        Arxml_WriteLine XmlTag(CUSTOM_ARXML_TRACEABILITY_TAG, port.ElementGUID, IDENT_09)
+    else
+        Arxml_WriteLine XmlTagComment(CUSTOM_ARXML_TRACEABILITY_TAG, port.ElementGUID, IDENT_09)
+    end if
+
+    Arxml_WriteLine XmlOpenTag("REQUIRED-COM-SPECS", IDENT_09)
+    '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
+    'Next Evelops / Operations / Attributes / Modes
+    
+    dim interfaceType
+    dim interfacePath
+	dim swInterfaceId
+    
+	swInterfaceId = GetLinkedSwInterfaceElementId(port, RPORT_INTERFACE_LINK)
+	if swInterfaceId <> 0 then
+		Set swInterface = Repository.GetElementByID(swInterfaceId)
+	end if 
+	
+    If Not swInterface Is Nothing Then
+        
+		set parentPackage = Repository.GetPackageByID(swInterface.PackageID)
+        if port.Stereotype = RPORT_CLIENT then
+            
+            'Search for Opperations
+            PortPrototypeIfOperationsExtract swPort, swInterface
+            
+            interfaceType = "CLIENT-SERVER-INTERFACE"
+            interfacePath = "/" & parentPackage.Name & PACKAGE_SUFFIX &"/PortInterfaces/" & swInterface.Name
+
+        elseif port.Stereotype = RPORT_RECEIVER then
+        
+            'Search for Attributes
+            PortPrototypeIfAttributesExtract swPort, swInterface
+            
+            interfaceType = "SENDER-RECEIVER-INTERFACE"
+            interfacePath = "/" & parentPackage.Name & PACKAGE_SUFFIX &"/PortInterfaces/" & swInterface.Name
+        
+        elseif port.Stereotype = RPORT_MDSW then
+        
+            'Todo: Search for Modes
+            Arxml_WriteLine XmlOpenTag("MODE-SWITCH-SENDER-COM-SPEC", IDENT_10)
+            Arxml_WriteLine XmlTagComment("MODE_SW" , "ToDo in future", IDENT_11)
+            Arxml_WriteLine XmlCloseTag("MODE-SWITCH-SENDER-COM-SPEC", IDENT_10)
+            
+            interfaceType = "MODE-SWITCH-INTERFACE"
+            interfacePath = "/" & parentPackage.Name & PACKAGE_SUFFIX &"/PortInterfaces/" & swInterface.Name
+        
+        else
+            interfaceType = "TBD"
+            interfacePath = "TBD"
+        end if
+    else
+        Arxml_WriteLine XmlTagComment("TBD-INTERFACE", "Interface not defined", IDENT_10)
+    end if
+
+    '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    '+                    Terminate ARXML Tag                   +
+    Arxml_WriteLine XmlCloseTag("PROVIDED-COM-SPECS", IDENT_09)
+    If Not swInterface Is Nothing Then
+		Arxml_WriteLine XmlTagAndData("PROVIDED-INTERFACE-TREF", interfacePath, "DEST=" & Chr(34) & interfaceType & Chr(34), IDENT_09)
+    else
+		Arxml_WriteLine XmlTagComment("PROVIDED-INTERFACE-TREF", "Interface not defined", IDENT_09)
+	end if
+    Arxml_WriteLine XmlCloseTag("P-PORT-PROTOTYPE", IDENT_08)
+    '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
+end function
 
 Private Function Arxml_PortPrototypeIfOperation(Oper, ifName, portType)
 
@@ -610,43 +716,48 @@ Private Function PortPrototypeExtract()
     dim swInterface as EA.Element
     dim arxmlPortType
     dim arxmlPort
-    dim swInterfaceId
+	dim guidsList
+	dim guids
+	dim i
+	
+    guidsList = GetPPortsGUIDsList(g_SelectedComponent,PPORT_SERVER)
+	guidsList = guidsList & "," & GetPPortsGUIDsList(g_SelectedComponent,PPORT_SENDER)
+	guidsList = guidsList & "," & GetPPortsGUIDsList(g_SelectedComponent,PPORT_MDSW)
+	
+	if guidsList <> "" then
+	    guids = Split(guidsList, ",")
+		
+		For i = 0 To UBound(Guids)
+			if guids(i) <> "" then
+				Set port = Repository.GetElementByGUID(guids(i))
 
-    
-    'Loop for All Ports (P-Ports and R-Ports)
-    for each port in g_SelectedComponent.Elements
-        
-        swInterfaceId = GetLinkedSwInterfaceElementId(port)
-        
-        if swInterfaceId <> 0 then
-            Set swInterface = Repository.GetElementByID(swInterfaceId)
-        
-			Debug_Print "    " & port.Name & ":" & port.Stereotype, 3
-			if port.Stereotype = PPORT_SERVER             then 
-				Arxml_PortPrototypePPort port, swInterface
-			
-			elseif port.Stereotype = PPORT_SENDER         then
-				Arxml_PortPrototypePPort port, swInterface            
+				Debug_Print "guids(" & i & ")" & guids(i), 1
+				Debug_Print "swInterface.Name" & port.Name, 1
 				
-			elseif port.Stereotype = PPORT_MDSW then
-				Arxml_PortPrototypePPort port, swInterface    
-				
-			elseif port.Stereotype = RPORT_CLIENT         then
-				arxmlPort = "<R-PORT-PROTOTYPE>"
-				arxmlPortType = "<CLIENT-COM-SPEC>"
-			elseif port.Stereotype = RPORT_RECEIVER       then
-				arxmlPort = "<R-PORT-PROTOTYPE>"
-				arxmlPortType = "<NONQUEUED-RECEIVER-COM-SPEC>"
-			elseif port.Stereotype = RPORT_MDSW  then
-				arxmlPort = "<R-PORT-PROTOTYPE>"
-				arxmlPortType = "<MODE-SWITCH-RECEIVER-COM-SPEC>"
-			else
-				Error_Print("No valid Port type : '" & port.Name & ":" & port.Stereotype & "' : Arxml_CreateSWComponent_start")
-				arxmlPort = "<UNKNOWN-PORT-PROTOTYPE>"
-				arxmlPortType = "</UNKNOWN-COM-SPEC>"
+				Arxml_PortPrototypePPort port
 			end if
-		end if
-    next
+        Next
+	end if
+
+    guidsList = GetPPortsGUIDsList(g_SelectedComponent,RPORT_CLIENT)
+	guidsList = guidsList & "," & GetPPortsGUIDsList(g_SelectedComponent,RPORT_RECEIVER)
+	guidsList = guidsList & "," & GetPPortsGUIDsList(g_SelectedComponent,RPORT_MDSW)
+
+	if guidsList <> "" then
+	    guids = Split(guidsList, ",")
+		
+		For i = 0 To UBound(Guids)
+			if guids(i) <> "" then
+				Set port = Repository.GetElementByGUID(guids(i))
+
+				Debug_Print "guids(" & i & ")" & guids(i), 1
+				Debug_Print "swInterface.Name" & port.Name, 1
+				
+				Arxml_PortPrototypeRPort port
+			end if
+        Next
+	end if
+
 end function
 
 
@@ -708,7 +819,7 @@ Private Function PortInterfacesExtract()
         Debug_Print "    " & port.Name & ":" & port.Stereotype, 1
         
         'Search for Linked SW Interfaces
-        swInterfaceId = GetLinkedSwInterfaceElementId(port)
+        swInterfaceId = GetLinkedSwInterfaceElementId(port, PPORT_INTERFACE_LINK)
         Debug_Print "swInterfaceId " & swInterfaceId, 3
         
         
@@ -766,7 +877,7 @@ Private Function IdentifySwComponentType()
 
 end function
 
-Private Function GetLinkedSwInterfaceElementId(thePort)
+Private Function GetLinkedSwInterfaceElementId(thePort, connectorType)
 
     Debug_Print "GetLinkedSwInterfaceElementId", 1
     
@@ -776,6 +887,8 @@ Private Function GetLinkedSwInterfaceElementId(thePort)
     set port = thePort
     
     GetLinkedSwInterfaceElementId = 0
+	
+	Debug_Print "connectorType " & connectorType, 2
     
     'Search for Linked SW Interfaces
     dim query
@@ -786,7 +899,7 @@ Private Function GetLinkedSwInterfaceElementId(thePort)
             "SELECT t_connector.ea_guid                             " & Chr(10) & _
             "FROM t_connector                                       " & Chr(10) & _
             "WHERE                                                  " & Chr(10) & _
-            "      t_connector.Connector_Type = 'Realisation' AND   " & Chr(10) & _
+            "      t_connector.Connector_Type = '" & connectorType & "' AND   " & Chr(10) & _
             "      t_connector.Start_Object_ID = " & port.ElementID
     
     xmlOutput = Repository.SQLQuery(query)
@@ -804,5 +917,49 @@ Private Function GetLinkedSwInterfaceElementId(thePort)
     end if
     
     Debug_Print GetLinkedSwInterfaceElementId, 2
+    
+End function
+
+Private Function GetPPortsGUIDsList(swc, portType)
+    Debug_Print "GetSwcPPortsGUIDsList", 1
+    
+    dim swComponent as EA.Element
+    set swComponent = swc
+    
+	GetPPortsGUIDsList = ""
+	
+    'Search for Linked SW Interfaces
+    dim query
+    dim xmlOutput
+    dim fileRow
+    dim guid
+		
+    query = _
+            "SELECT t_object.ea_guid                            " & Chr(10) & _
+            "FROM t_object                                      " & Chr(10) & _
+            "WHERE                                              " & Chr(10) & _
+            "      t_object.Stereotype = '" & portType & "' AND   " & Chr(10) & _
+            "      t_object.ParentID = " & swComponent.ElementID
+    
+
+	Debug_Print "query: " & query, 3
+    xmlOutput = Repository.SQLQuery(query)
+	
+	Debug_Print "query result: " & xmlOutput, 3
+	
+	if InStr(xmlOutput, "}") > 0 then
+	
+		xmlOutput = replace(xmlOutput,"</ea_guid></Row><Row><ea_guid>",",")
+		xmlOutput = replace(xmlOutput,"</ea_guid></Row>","")
+		xmlOutput = replace(xmlOutput,"</Data></Dataset_0></EADATA>","")
+		xmlOutput = right(xmlOutput,len(xmlOutput) - instr(xmlOutput, chr(10)))
+		xmlOutput = replace(xmlOutput,"<Row><ea_guid>","")
+		xmlOutput = replace(xmlOutput,"<Dataset_0><Data>","")
+		xmlOutput = right(xmlOutput,len(xmlOutput) - instr(xmlOutput, ">"))
+	
+		GetPPortsGUIDsList = xmlOutput
+	end if
+	
+    Debug_Print GetPPortsGUIDsList, 1
     
 End function

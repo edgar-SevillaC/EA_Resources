@@ -28,6 +28,9 @@ option explicit
 ' (v1.2) [11.11.2025] : @Edgar Sevilla : Refactoring, readability improved
 ' (v2.0) [15.11.2025] : @Edgar Sevilla : User interface for selecting Path to store arxml file
 '                                        Refactoring and split for separation of concerns (, minor fixes, readability improved
+' (v2.1) [17.11.2025] : @Edgar Sevilla : minor Fixes, Procession of R-Ports, Reference to interfaces
+'                                        in other packages
+'
 
 'Software Component under analysis
 dim g_SelectedComponent as EA.Element

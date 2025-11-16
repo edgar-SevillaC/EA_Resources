@@ -13,7 +13,7 @@
 ' ================================
 
 ' Script Metadata
-Const SCRIPT_VERSION = "2.0"
+Const SCRIPT_VERSION = "2.1"
 Const SCRIPT_AUTHOR = "Edgar Sevilla"
 
 ' Debug Settings
@@ -27,7 +27,7 @@ Const AUTOSAR_SCHEMA_INST = "http://www.w3.org/2001/XMLSchema-instance"
 Const AUTOSAR_SCHEMA_XSD = "http://autosar.org/schema/r4.0 AUTOSAR_00046.xsd"
 
 ' Custom Namespace
-Const CUSTOM_ARXML_NAMESPACE = "" '"ea"
+Const CUSTOM_ARXML_NAMESPACE = "ea" '"ea"
 Const CUSTOM_ARXML_SCHEMA = "https://sparxsystems.com/schema/ea"
 Const CUSTOM_ARXML_TRACEABILITY_TAG ="ea:GUID"
 
@@ -40,6 +40,10 @@ Const PPORT_MDSW = "ModeSwitch_in"
 Const RPORT_CLIENT = "Client"
 Const RPORT_RECEIVER = "Receiver"
 Const RPORT_MDSW = "ModeSwitch_out"
+
+' Connectors
+Const PPORT_INTERFACE_LINK = "Realisation"
+Const RPORT_INTERFACE_LINK = "Usage"
 
 ' Tags
 Const COMPONENT_TYPE_TAG = "Layer"
