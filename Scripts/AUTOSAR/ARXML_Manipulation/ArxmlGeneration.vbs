@@ -349,7 +349,9 @@ Private Function Arxml_CreateSWComponent()
     
     '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     '+                Create CompuMethods Package               +
-    Arxml_WriteLine XmlOpenTag(componentType, IDENT_06)
+    'Arxml_WriteLine XmlOpenTag(componentType, IDENT_06)
+	Arxml_WriteLine XmlOpenTagAndData(componentType, "GUID=" & chr(34) & g_SelectedComponent.ElementGUID & chr(34) , IDENT_06)
+	
     Arxml_WriteLine XmlTag("SHORT-NAME", g_SelectedComponent.Name, IDENT_07)
         
     if CUSTOM_ARXML_NAMESPACE <> "" then
@@ -592,13 +594,13 @@ Private Function Arxml_PortPrototypeRPort(swPort)
 
     '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     '+                    Terminate ARXML Tag                   +
-    Arxml_WriteLine XmlCloseTag("PROVIDED-COM-SPECS", IDENT_09)
+    Arxml_WriteLine XmlCloseTag("REQUIRED-COM-SPECS", IDENT_09)
     If Not swInterface Is Nothing Then
-		Arxml_WriteLine XmlTagAndData("PROVIDED-INTERFACE-TREF", interfacePath, "DEST=" & Chr(34) & interfaceType & Chr(34), IDENT_09)
+		Arxml_WriteLine XmlTagAndData("REQUIRED-INTERFACE-TREF", interfacePath, "DEST=" & Chr(34) & interfaceType & Chr(34), IDENT_09)
     else
-		Arxml_WriteLine XmlTagComment("PROVIDED-INTERFACE-TREF", "Interface not defined", IDENT_09)
+		Arxml_WriteLine XmlTagComment("REQUIRED-INTERFACE-TREF", "Interface not defined", IDENT_09)
 	end if
-    Arxml_WriteLine XmlCloseTag("P-PORT-PROTOTYPE", IDENT_08)
+    Arxml_WriteLine XmlCloseTag("R-PORT-PROTOTYPE", IDENT_08)
     '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
 end function

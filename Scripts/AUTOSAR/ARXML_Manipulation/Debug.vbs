@@ -8,7 +8,7 @@
 ' Date: 12.11.2025
 '
 
-Const DBG_PRINT_ENABLED = True
+Const DBG_PRINT_ENABLED = False
 Const DBG_LEVEL = 1      ' Level of details [1 - 3]
 
 ' Debug Print

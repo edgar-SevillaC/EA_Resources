@@ -31,7 +31,9 @@ Const CUSTOM_ARXML_NAMESPACE = "ea" '"ea"
 Const CUSTOM_ARXML_SCHEMA = "https://sparxsystems.com/schema/ea"
 Const CUSTOM_ARXML_TRACEABILITY_TAG ="ea:GUID"
 
-' Stereotypes
+Const DEFAULT_FILE_NAME = "SWC_Component_A.arxml"
+
+' EA Stereotypes
 Const SWC_STEREOTYPE = "SW Component"
 Const SWIF_STEREOTYPE = "SW Interface"
 Const PPORT_SERVER = "Server"
