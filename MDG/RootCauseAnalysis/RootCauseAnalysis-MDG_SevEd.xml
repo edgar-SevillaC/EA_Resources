@@ -1,5 +1,5 @@
 <?xml  version='1.0' encoding='windows-1252' ?>
-<MDG.Technology version="1.0"><Documentation id="SEVED_RCA" name="Root Cause Analysis - SevEd" version="1.0" notes="This is the Root Cause Analysis MDG." infoURI="https://github.com/edgar-SevillaC/EA_Resources" supportURI="e.s3vill4.c4s@gmail.com"/><UMLProfiles><UMLProfile profiletype="uml2">
+<MDG.Technology version="1.0"><Documentation id="SEVED_RCA" name="Root Cause Analysis - SevEd" version="1.1" notes="This is the Root Cause Analysis MDG." infoURI="https://github.com/edgar-SevillaC/EA_Resources" supportURI="e.s3vill4.c4s@gmail.com"/><UMLProfiles><UMLProfile profiletype="uml2">
 	<Documentation id="C03603D6-C" name="Fault Tree Analysis Profile" version="1.0" notes="Fault Tree Analysis profile"/>
 	<Content>
 		<Stereotypes>
@@ -281,6 +281,7 @@ AAAA
 		<TaggedValueTypes/>
 		<ViewDefinitions/>
 		<Metamodel/>
+		<QuickLink data="Class,Top Event,Class,Logical Gate,Fault Tree Analysis Profile::Fault Tree Analysis,Logical Gate,,causes,,to,,causes,TRUE,TRUE,TRUE,TRUE,,0,,,,,,&#xA;Class,Logical Gate,Class,Top Event,Fault Tree Analysis Profile::Fault Tree Analysis,Top Event,,causes,,to,,causes,FALSE,FALSE,FALSE,FALSE,,0,,,,,,&#xA;Class,Event,Class,Logical Gate,Fault Tree Analysis Profile::Fault Tree Analysis,Logical Gate,,causes,,to,,causes,TRUE,TRUE,TRUE,TRUE,,0,,,,,,&#xA;Class,Logical Gate,Class,Event,Fault Tree Analysis Profile::Fault Tree Analysis,Event,,causes,,to,,causes,TRUE,TRUE,TRUE,TRUE,,0,,,,,,&#xA;Class,Event,Class,Corrective Action,Fault Tree Analysis Profile::Fault Tree Analysis,Corrective Action,,trace,,to,,trace,TRUE,TRUE,TRUE,TRUE,,0,,,,,,&#xA;Class,Corrective Action,Class,Event,Fault Tree Analysis Profile::Fault Tree Analysis,Event,,trace,,to,,trace,FALSE,FALSE,FALSE,FALSE,,0,,,,,,&#xA;&#xA;"/>
 	</Content>
 </UMLProfile></UMLProfiles><DiagramProfile><UMLProfile profiletype="uml2">
 	<Documentation id="189DF0F3-D" name="Fault Tree Analysis Diagrams" version="1.0" notes="Fault Tree Analysis Diagrams"/>
@@ -339,4 +340,4 @@ AAAA
 		<ViewDefinitions/>
 		<Metamodel/>
 	</Content>
-</UMLProfile></UIToolboxes><ModelTemplates><Model name="SW Project Root Template" description="MAGNA-Architecture-SW-Project-Root-Template.rtf" location="C:\_git\Paola_MDGdevelopment\mdg\delivery\templates\MAGNA-Architecture-SW-Project-Root-Template.xml" default="yes" icon="32" filter="" isFramework="false"/><Model name="SW Composition Template" description="MAGNA-Architecture-SW-Composition-Template.rtf" location="C:\_git\Paola_MDGdevelopment\mdg\delivery\templates\MAGNA-Architecture-SW-Composition-Template.xml" default="yes" icon="32" filter="" isFramework="false"/><Model name="SW Component Template" description="MAGNA-Architecture-SW-Component-Template.rtf" location="C:\_git\Paola_MDGdevelopment\mdg\delivery\templates\MAGNA-Architecture-SW-Component-Template.xml" default="yes" icon="32" filter="" isFramework="false"/><Model name="Requirements Template" description="MAGNA-Architecture-SRS-Package-Template.rtf" location="C:\_git\Paola_MDGdevelopment\mdg\delivery\templates\MAGNA-Architecture-SRS-Package-Template.xml" default="yes" icon="32" filter="" isFramework="false"/></ModelTemplates></MDG.Technology>
+</UMLProfile></UIToolboxes><ModelTemplates><Model name="Fault Tree Analaysis Template" description="FaultTreeAnalaysisPattern-Template.rtf" location="C:\_git\Paola_MDGdevelopment\mdg\delivery\templates\FaultTreeAnalaysisPattern-Template.xml" default="yes" icon="32" filter="" isFramework="false"/></ModelTemplates></MDG.Technology>
